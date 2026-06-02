@@ -1,0 +1,59 @@
+# ---- Secrets ----
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+dist/
+build/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- IDE / OS ----
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Docker / Data ----
+docker-data/
+postgres-data/
+redis-data/
+qdrant-data/
+minio-data/
+
+# ---- Logs / Tmp ----
+*.log
+logs/
+tmp/
+.tmp/
+
+# ---- Generated media (大文件不进 Git) ----
+generated/
+uploads/
