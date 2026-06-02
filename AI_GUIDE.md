@@ -12,7 +12,7 @@
 
 **一句话**：把多个大模型（文案 / 图片 / 视频 / TTS）串成一条流水线，加上品牌知识库（RAG）和规则审核，让小团队快速产出广告文案、好评文案、海报、短视频。
 
-**当前阶段**：STEP 2（FastAPI 骨架已立，有 / + /health 接口）
+**当前阶段**：STEP 5（Celery 异步任务框架已立）
 
 ### 目标架构（最终态）
 
@@ -52,15 +52,27 @@ AIGC-Marketing-Platform/
 │   ├── plan.md              ← 完整产品方案（v3）
 │   └── infra.md             ← 基础设施运维速查
 ├── frontend/         [未建] ← Next.js 14 + TypeScript + TailwindCSS
-└── backend/                  ← FastAPI 骨架（STEP 2 已建）
+└── backend/                  ← FastAPI 后端（STEP 5 已建）
     ├── pyproject.toml        ← 依赖声明（uv 管理）
     ├── .python-version       ← 锁定 3.12
     ├── README.md             ← 后端启动速查
     ├── .venv/         [运行时] uv 创建的虚拟环境
     └── app/
         ├── main.py           ← FastAPI 入口 + /health
-        └── core/
-            └── config.py     ← 读 .env 的配置中心
+        ├── core/
+        │   ├── config.py     ← 读 .env 的配置中心
+        │   ├── db.py         ← SQLAlchemy engine + SessionLocal
+        │   └── security.py   ← JWT + 密码 hash/verify
+        ├── api/
+        │   ├── auth.py       ← 注册 / 登录 / 当前用户
+        │   └── tasks.py      ← 异步任务 API（投递 + 状态查询）
+        ├── models/           ← User / GenerationLog / UsageLog
+        ├── services/
+        │   └── llm_router.py ← STEP 4：统一模型调用入口（DashScope）
+        └── workers/
+            ├── celery_app.py  ← STEP 5：Celery 应用入口
+            ├── poster_worker.py
+            └── video_worker.py
 ```
 
 **后续 STEP 完成后会变成**（提前展示，便于理解）：
@@ -123,7 +135,7 @@ frontend/
 
 | 术语 | 含义 |
 |---|---|
-| **模型路由层** | `services/llm_router.py`。所有 LLM 调用必须经过它，统一封装：选模型 / 缓存 / 重试 / 成本统计。改模型只动 `.env` 的 `LLM_PROVIDER`。 |
+| **模型路由层** | `services/llm_router.py`。所有 LLM 调用必须经过它，统一封装：选模型 / 缓存 / 重试 / 成本统计。改模型优先通过 `.env` 中各模块模型变量完成。 |
 | **Celery 任务** | 跑在独立 Worker 进程的后台任务。图片/视频生成耗时长，必须异步。前端通过 `task_id` 轮询进度。 |
 | **规则审核** | 4 类：敏感词（DFA）/ 广告法违禁词 / 品牌合规（正则）/ 格式校验。所有 LLM 输出前必须过审。 |
 | **RAG** | Retrieval-Augmented Generation。上传品牌手册 → BGE-M3 向量化 → Qdrant 存储 → 生成时检索注入。 |
@@ -145,13 +157,19 @@ frontend/
 | 加一个新的目标平台（如抖音文案） | `services/copywriter.py` 的 `PLATFORMS` 常量 + `frontend/app/(dashboard)/copy/page.tsx` 下拉项 | — |
 | 改广告文案初稿 Prompt | `backend/app/prompts/copywriter/draft.md` | 控制 DeepSeek-V4 框架结构 |
 | 改广告文案润色 Prompt | `backend/app/prompts/copywriter/polish.md` | 控制 Qwen3.7-Max 风格表达 |
+| 改海报图片生成模型 | `.env` 的 `POSTER_IMAGE_MODEL` 字段 | 默认 `qwen-image-2.0` |
+| 调整文本模型重试/超时策略 | `backend/app/services/llm_router.py` | `max_retries` / `default_timeout` |
+| 改 Celery Broker / Backend | `.env` 的 `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` | 默认走 Redis |
+| 新增异步任务 | `backend/app/workers/*.py` + `backend/app/api/tasks.py` | Worker 定义 + API 投递/查询 |
+| 增加/修改后端自动化测试 | `backend/tests/` | 运行 `uv run pytest -q` |
+| 修改 GitHub CI 流水线 | `.github/workflows/ci.yml` | push/PR 自动跑后端测试 |
 | 加 / 改敏感词 | `backend/app/services/compliance/wordlists/*.txt` | 进程启动时加载 |
 | 加广告法违禁词 | `backend/app/services/compliance/ad_law.py` 中的列表 | — |
 | 改批量好评的"人设池" | `backend/app/services/review_generator.py` 的 `PERSONAS` | — |
 | 改批量好评的去重阈值 | 同上文件的 `SIMILARITY_THRESHOLD` | 默认 0.85 |
 | 加新的海报模板 | `backend/app/services/poster_composer.py` + `backend/templates/poster/*.json` | — |
 | 改视频脚本 Prompt | `backend/app/prompts/video/script.md` | 控制 DeepSeek-V4 脚本格式 |
-| 改分镜图生成参数 | `backend/app/workers/video_worker.py` 的 `gen_images()` | Qwen-Image-2.0 分辨率/风格等 |
+| 改分镜图生成参数 | `backend/app/workers/video_worker.py` 的 `gen_images()` | 模型由 `VIDEO_IMAGE_MODEL` 控制，默认 Qwen-Image-2.0 |
 | 改视频片段生成参数 | `backend/app/workers/video_worker.py` 的 `gen_clips()` | Wan2.7-Video 时长/运动幅度等 |
 | 重新生成单张分镜图 | POST `/api/video/retry-image` | 传 `task_id` + `shot_index` |
 | 重新生成单个视频片段 | POST `/api/video/retry-clip` | 传 `task_id` + `shot_index` |
@@ -278,16 +296,19 @@ uv run alembic current                               # 查看当前版本
 
 | 变量 | 作用 | 默认值 |
 |---|---|---|
-| `LLM_PROVIDER` | 文案模型路由 | `github` |
-| `GITHUB_TOKEN` | GitHub Models 鉴权 | — |
 | `DASHSCOPE_API_KEY` | DeepSeek-V4 / Qwen3.7-Max / Qwen-Image-2.0 / Qwen-VL / Wan2.7-Video（均走 DashScope） | — |
 | `COPY_DRAFT_MODEL` | 文案/策划初稿模型名 | `deepseek-v4` |
 | `COPY_POLISH_MODEL` | 文案/策划润色模型名 | `qwen-plus`（Qwen3.7-Max 接口名） |
+| `POSTER_IMAGE_MODEL` | 海报图片生成模型名 | `qwen-image-2.0` |
 | `VIDEO_DEEPSEEK_MODEL` | 脚本生成模型名 | `deepseek-v4` |
-| `VIDEO_IMAGE_MODEL` | 分镜图生成模型名 | `wanx2.1-t2i-turbo` |
+| `VIDEO_IMAGE_MODEL` | 分镜图生成模型名 | `qwen-image-2.0` |
 | `VIDEO_CLIP_MODEL` | 视频片段生成模型名 | `wan2.7-14b-text2video` |
 | `DATABASE_URL` | Postgres 连接串 | `postgresql+psycopg://...` |
 | `REDIS_URL` | Celery + 缓存 | `redis://localhost:6379/0` |
+| `CELERY_BROKER_URL` | Celery broker 地址 | `redis://localhost:6379/0` |
+| `CELERY_RESULT_BACKEND` | Celery 结果存储地址 | `redis://localhost:6379/1` |
+| `CELERY_TASK_DEFAULT_QUEUE` | Celery 默认队列名 | `aigc_default` |
+| `CELERY_TASK_TRACK_STARTED` | 是否追踪 STARTED 状态 | `true` |
 | `JWT_SECRET` | 登录令牌签名 | — |
 
 ---
@@ -316,12 +337,26 @@ curl http://localhost:6333/collections          # Qdrant
 
 ### 后端 / 前端启动
 
-**后端（STEP 3 已完成）**：
+**后端（STEP 5 已完成）**：
 
 ```bash
 cd backend
 uv sync                                        # 首次装依赖
 uv run uvicorn app.main:app --reload --port 8000
+```
+
+另开一个终端启动 Celery Worker：
+
+```bash
+cd backend
+uv run celery -A app.workers.celery_app:celery_app worker -l info
+```
+
+运行自动化测试：
+
+```bash
+cd backend
+uv run pytest -q
 ```
 
 - 首页: http://localhost:8000
@@ -330,6 +365,8 @@ uv run uvicorn app.main:app --reload --port 8000
 - 注册: POST http://localhost:8000/api/auth/register
 - 登录: POST http://localhost:8000/api/auth/login  → 返回 JWT token
 - 当前用户: GET http://localhost:8000/api/auth/me  （Bearer token）
+- 异步连通性任务: POST http://localhost:8000/api/tasks/ping
+- 任务状态查询: GET  http://localhost:8000/api/tasks/{task_id}
 
 **前端**：> [未建] STEP 7 后补充。
 
@@ -337,23 +374,23 @@ uv run uvicorn app.main:app --reload --port 8000
 
 ## 9. 已知限制与 TODO
 
-- 当前处于 **STEP 3 完成**，数据库 + JWT 用户体系已就绪
-- GitHub Models 有速率限制（开发期够用，生产期需切换）
+- 当前处于 **STEP 5 完成**，Celery 异步任务框架 + 模型路由 + 数据库 + JWT 已就绪
+- 目前仅实现文本模型路由；图片/视频路由将在 STEP 7+ 接入 Worker
 - 视频生成 MVP 暂未支持人物口型对齐
 - 多语言：当前只考虑中文 + 英文
 - 不做企业级特性：多租户 / SSO / 审批流 / 计费
 
 ---
 
-## 10. 开发节奏（当前位置 = STEP 3 完成）
+## 10. 开发节奏（当前位置 = STEP 5 完成）
 
 ```
 [✓] STEP 0  脚手架与导航文件
 [✓] STEP 1  Docker 基础设施（postgres/redis/qdrant/minio）
 [✓] STEP 2  后端骨架（FastAPI hello）
 [✓] STEP 3  数据库 + JWT 用户体系
-[ ] STEP 4  模型路由层（接 DashScope：DeepSeek-V4 / Qwen3.7-Max）
-[ ] STEP 5  Celery 异步任务框架
+[✓] STEP 4  模型路由层（接 DashScope：DeepSeek-V4 / Qwen3.7-Max）
+[✓] STEP 5  Celery 异步任务框架
 [ ] STEP 6  规则审核引擎
 [ ] STEP 7  广告文案生成（第一个完整功能）
 [ ] STEP 8  批量好评生成

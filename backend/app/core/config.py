@@ -11,16 +11,19 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
-    # ---- 模型路由 ----
+    # ---- 模型 API Key ----
     DASHSCOPE_API_KEY: str = ""
 
     # ---- 文案 & 策划（两步流程）----
     COPY_DRAFT_MODEL: str = "deepseek-v4"          # 初稿：DeepSeek-V4
     COPY_POLISH_MODEL: str = "qwen-plus"            # 润色：Qwen3.7-Max
 
+    # ---- 海报图片生成 ----
+    POSTER_IMAGE_MODEL: str = "qwen-image-2.0"     # 海报底图
+
     # ---- 视频生成 ----
     VIDEO_DEEPSEEK_MODEL: str = "deepseek-v4"       # 脚本生成
-    VIDEO_IMAGE_MODEL: str = "wanx2.1-t2i-turbo"   # 分镜图
+    VIDEO_IMAGE_MODEL: str = "qwen-image-2.0"      # 分镜图
     VIDEO_CLIP_MODEL: str = "wan2.7-14b-text2video" # 视频片段
 
     # ---- 数据库 ----
@@ -28,6 +31,10 @@ class Settings(BaseSettings):
         "postgresql+psycopg://aigc:aigc_dev_pass@localhost:5432/aigc"
     )
     REDIS_URL: str = "redis://localhost:6379/0"
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/1"
+    CELERY_TASK_DEFAULT_QUEUE: str = "aigc_default"
+    CELERY_TASK_TRACK_STARTED: bool = True
     QDRANT_URL: str = "http://localhost:6333"
 
     # ---- 对象存储 ----

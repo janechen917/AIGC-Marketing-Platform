@@ -42,7 +42,7 @@
 预期启动流程（参考）：
 
 ```bash
-cp .env.example .env             # 填入 GITHUB_TOKEN 等
+cp .env.example .env             # 填入 DASHSCOPE_API_KEY 等
 docker compose up -d             # 启动基础设施
 cd backend && uv sync && uv run uvicorn app.main:app --reload
 cd frontend && pnpm install && pnpm dev
