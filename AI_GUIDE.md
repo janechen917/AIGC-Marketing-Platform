@@ -20,10 +20,9 @@
 [Next.js 前端] ──► [FastAPI API] ──► [Postgres + Redis + Qdrant + MinIO]
                         │
                         ├─► [Celery Worker] ──► [模型路由层]
-                        │                          ├─ GitHub Models gpt-4o-mini（P1 默认，免费）
-                        │                          ├─ Qwen3 / DeepSeek-V3（P2+ 升级）
+                        │                          ├─ DeepSeek-V4（文案/策划初稿 + 视频脚本）
+                        │                          ├─ Qwen3.7-Max（文案/策划润色）
                         │                          ├─ Qwen-Image-2.0 / Qwen-VL（DashScope）
-                        │                          ├─ DeepSeek-V4（脚本生成）
                         │                          ├─ Edge-TTS / CosyVoice
                         │                          └─ Wan2.7-Video（视频片段）
                         └─► [内容安全 API]
@@ -140,10 +139,12 @@ frontend/
 
 | 想做什么 | 改哪里 | 备注 |
 |---|---|---|
-| 换文案 LLM 模型 | `.env` 的 `LLM_PROVIDER` 字段 | 业务代码不动 |
+| 换文案初稿模型 | `.env` 的 `COPY_DRAFT_MODEL` 字段 | 默认 `deepseek-v4` |
+| 换文案润色模型 | `.env` 的 `COPY_POLISH_MODEL` 字段 | 默认 `qwen-plus`（Qwen3.7-Max） |
 | 新增一个 LLM 厂商 | `backend/app/services/llm_router.py` 加分支 | 实现 `chat(messages)` 接口 |
 | 加一个新的目标平台（如抖音文案） | `services/copywriter.py` 的 `PLATFORMS` 常量 + `frontend/app/(dashboard)/copy/page.tsx` 下拉项 | — |
-| 改广告文案 Prompt | `backend/app/prompts/copywriter/*.md`（P2 后改 DB） | 不需要重启 |
+| 改广告文案初稿 Prompt | `backend/app/prompts/copywriter/draft.md` | 控制 DeepSeek-V4 框架结构 |
+| 改广告文案润色 Prompt | `backend/app/prompts/copywriter/polish.md` | 控制 Qwen3.7-Max 风格表达 |
 | 加 / 改敏感词 | `backend/app/services/compliance/wordlists/*.txt` | 进程启动时加载 |
 | 加广告法违禁词 | `backend/app/services/compliance/ad_law.py` 中的列表 | — |
 | 改批量好评的"人设池" | `backend/app/services/review_generator.py` 的 `PERSONAS` | — |
@@ -174,9 +175,12 @@ frontend/
         api/copywriter.py  (校验入参)
             ↓
         services/copywriter.py
-            ├─ rag.retriever.query(品牌上下文)        [P2 起]
-            ├─ services/llm_router.chat(prompt)        ← 路由到 GitHub Models
-            └─ services/compliance.check_all(text)
+            ├─ rag.retriever.query(品牌上下文)                    [P2 起]
+            ├─ services/llm_router.chat(draft_prompt,             ← DeepSeek-V4 生成初版框架
+            │                          model=COPY_DRAFT_MODEL)
+            ├─ services/llm_router.chat(polish_prompt+draft,      ← Qwen3.7-Max 润色优化
+            │                          model=COPY_POLISH_MODEL)
+            └─ services/compliance.check_all(polished_text)
             ↓
         写入 generation_logs
             ↓
@@ -247,9 +251,24 @@ frontend/
 
 ## 6. 数据库 Schema 速查
 
-> [未建] STEP 3 后补充。届时这里会有一张表清单与字段。
+> STEP 3 已完成，3 张核心表已建。
 
-预期表：`users` / `generation_logs` / `usage_logs` / `prompt_templates` / `kb_documents` / `poster_tasks` / `video_tasks`
+| 表名 | 主要字段 | 说明 |
+|---|---|---|
+| `users` | `id`, `email`(unique), `hashed_password`, `role`(admin/user), `is_active`, `created_at` | JWT 用户体系 |
+| `generation_logs` | `id`, `user_id`(FK), `module`, `prompt`, `result`, `model`, `latency_ms`, `created_at` | 所有生成记录 |
+| `usage_logs` | `id`, `user_id`(FK), `module`, `model`, `tokens_in`, `tokens_out`, `cost_usd`, `created_at` | 成本统计 |
+
+后续待建：`prompt_templates` / `kb_documents` / `poster_tasks` / `video_tasks`
+
+**Alembic 常用命令**：
+```bash
+cd backend
+uv run alembic revision --autogenerate -m "<描述>"  # 生成迁移文件
+uv run alembic upgrade head                          # 应用迁移
+uv run alembic downgrade -1                          # 回滚一步
+uv run alembic current                               # 查看当前版本
+```
 
 ---
 
@@ -261,7 +280,9 @@ frontend/
 |---|---|---|
 | `LLM_PROVIDER` | 文案模型路由 | `github` |
 | `GITHUB_TOKEN` | GitHub Models 鉴权 | — |
-| `DASHSCOPE_API_KEY` | Qwen-Image-2.0 / Qwen-VL / DeepSeek-V4 / Wan2.7-Video（均走 DashScope） | — |
+| `DASHSCOPE_API_KEY` | DeepSeek-V4 / Qwen3.7-Max / Qwen-Image-2.0 / Qwen-VL / Wan2.7-Video（均走 DashScope） | — |
+| `COPY_DRAFT_MODEL` | 文案/策划初稿模型名 | `deepseek-v4` |
+| `COPY_POLISH_MODEL` | 文案/策划润色模型名 | `qwen-plus`（Qwen3.7-Max 接口名） |
 | `VIDEO_DEEPSEEK_MODEL` | 脚本生成模型名 | `deepseek-v4` |
 | `VIDEO_IMAGE_MODEL` | 分镜图生成模型名 | `wanx2.1-t2i-turbo` |
 | `VIDEO_CLIP_MODEL` | 视频片段生成模型名 | `wan2.7-14b-text2video` |
@@ -295,7 +316,7 @@ curl http://localhost:6333/collections          # Qdrant
 
 ### 后端 / 前端启动
 
-**后端（STEP 2 已完成）**：
+**后端（STEP 3 已完成）**：
 
 ```bash
 cd backend
@@ -306,6 +327,9 @@ uv run uvicorn app.main:app --reload --port 8000
 - 首页: http://localhost:8000
 - API 文档: http://localhost:8000/docs
 - 健康检查: http://localhost:8000/health  → `{api/postgres/redis: ok}`
+- 注册: POST http://localhost:8000/api/auth/register
+- 登录: POST http://localhost:8000/api/auth/login  → 返回 JWT token
+- 当前用户: GET http://localhost:8000/api/auth/me  （Bearer token）
 
 **前端**：> [未建] STEP 7 后补充。
 
@@ -313,7 +337,7 @@ uv run uvicorn app.main:app --reload --port 8000
 
 ## 9. 已知限制与 TODO
 
-- 当前处于 STEP 0，仅有脚手架
+- 当前处于 **STEP 3 完成**，数据库 + JWT 用户体系已就绪
 - GitHub Models 有速率限制（开发期够用，生产期需切换）
 - 视频生成 MVP 暂未支持人物口型对齐
 - 多语言：当前只考虑中文 + 英文
@@ -321,14 +345,14 @@ uv run uvicorn app.main:app --reload --port 8000
 
 ---
 
-## 10. 开发节奏（当前位置 = STEP 0）
+## 10. 开发节奏（当前位置 = STEP 3 完成）
 
 ```
 [✓] STEP 0  脚手架与导航文件
 [✓] STEP 1  Docker 基础设施（postgres/redis/qdrant/minio）
 [✓] STEP 2  后端骨架（FastAPI hello）
-[ ] STEP 3  数据库 + JWT 用户体系
-[ ] STEP 4  模型路由层（接 GitHub Models）
+[✓] STEP 3  数据库 + JWT 用户体系
+[ ] STEP 4  模型路由层（接 DashScope：DeepSeek-V4 / Qwen3.7-Max）
 [ ] STEP 5  Celery 异步任务框架
 [ ] STEP 6  规则审核引擎
 [ ] STEP 7  广告文案生成（第一个完整功能）

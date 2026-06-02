@@ -33,11 +33,12 @@
 [Next.js 前端 / Polotno 画布] ──► [FastAPI API] ──► [Postgres + Redis + Qdrant + MinIO]
                                        │
                                        ├─► [Celery Worker] ──► [模型路由层]
-                                       │                          ├─ GitHub Models gpt-4o-mini（P1 默认）
-                                       │                          ├─ Qwen3 / DeepSeek-V3（P2+）
+                                       │                          ├─ DeepSeek-V4（文案/策划初稿）
+                                       │                          ├─ Qwen3.7-Max（文案/策划润色）
                                        │                          ├─ Qwen-Image-2.0 / Qwen-VL（DashScope）
-                                       │                          ├─ Edge-TTS / CosyVoice
-                                       │                          └─ Wan 2.5（P5）
+                                       │                          ├─ DeepSeek-V4（视频脚本）
+                                       │                          ├─ Wan2.7-Video（视频片段）
+                                       │                          └─ Edge-TTS / CosyVoice
                                        └─► [内容安全 API]
 ```
 
@@ -54,8 +55,10 @@
 
 | 用途 | P1 默认 | P2+ 升级 | 说明 |
 |---|---|---|---|
-| 文案 | **GitHub Models gpt-4o-mini（免费）** | Qwen3 / DeepSeek-V3 | 路由层一个环境变量切换 |
-| 复杂策划 | gpt-4o-mini | GPT-5 / Claude | 仅复杂任务路由 |
+| 文案初稿 | **DeepSeek-V4**（DashScope） | — | 数据驱动、结构清晰，生成框架 |
+| 文案润色 | **Qwen3.7-Max**（DashScope） | — | 接收初稿，专业中文表达优化 |
+| 策划初稿 | **DeepSeek-V4**（DashScope） | — | 目标拆解、策略框架生成 |
+| 策划润色 | **Qwen3.7-Max**（DashScope） | — | 表达优化、风格统一 |
 | 产品图理解 | Qwen-VL | — | 为海报生成提取产品视觉特征 |
 | 图片底图 | **Qwen-Image-2.0**（DashScope） | — | 中文 prompt / 中文文字渲染优势 |
 | 海报排版 | Pillow + Polotno（前端画布） | — | 底图 + 模板合成，可编辑 |
@@ -98,7 +101,7 @@
 ## 七、Agent 使用边界
 
 仅 **P5** 阶段，且仅用于多步推理 + 工具调用场景：
-- 营销活动策划（目标拆解 → RAG → 策略 → 大纲 → 自审改写）
+- 营销活动策划（目标拆解 → RAG → DeepSeek-V4 策略框架 → Qwen3.7-Max 润色大纲 → 自审改写）
 - 跨平台内容矩阵生成
 - 品牌深度审核（可选）
 
@@ -111,6 +114,10 @@ P1–P4 全部直接函数调用，不引入 LangGraph。
 ### 8.1 单条文案精修
 输入：产品名、卖点、人群、平台、风格、长度
 输出：N 个标题 + 1 段正文 + Hashtag + Emoji
+
+**两步生成流程**：
+1. **DeepSeek-V4** 根据产品信息生成初版框架（强调数据驱动、卖点结构清晰）
+2. **Qwen3.7-Max** 接收初版，输出润色版本（专业表达、符合中文营销习惯）
 
 ### 8.2 批量好评（防雷同）
 - LLM 每次出 5–10 条，多轮调用

@@ -12,11 +12,16 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 
 class Settings(BaseSettings):
     # ---- 模型路由 ----
-    LLM_PROVIDER: str = "github"
-    GITHUB_TOKEN: str = ""
-    GITHUB_MODELS_ENDPOINT: str = "https://models.inference.ai.azure.com"
-    GITHUB_MODELS_NAME: str = "gpt-4o-mini"
     DASHSCOPE_API_KEY: str = ""
+
+    # ---- 文案 & 策划（两步流程）----
+    COPY_DRAFT_MODEL: str = "deepseek-v4"          # 初稿：DeepSeek-V4
+    COPY_POLISH_MODEL: str = "qwen-plus"            # 润色：Qwen3.7-Max
+
+    # ---- 视频生成 ----
+    VIDEO_DEEPSEEK_MODEL: str = "deepseek-v4"       # 脚本生成
+    VIDEO_IMAGE_MODEL: str = "wanx2.1-t2i-turbo"   # 分镜图
+    VIDEO_CLIP_MODEL: str = "wan2.7-14b-text2video" # 视频片段
 
     # ---- 数据库 ----
     DATABASE_URL: str = (
