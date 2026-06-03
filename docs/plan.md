@@ -194,3 +194,37 @@ P1–P4 全部直接函数调用，不引入 LangGraph。
 | **P3 海报生成** | Qwen-VL + Qwen-Image-2.0 + Polotno 画布 + 模板引擎 |
 | **P4 视频 MVP** | 脚本 → Qwen-Image-2.0 → TTS → FFmpeg 流水线 |
 | **P5 进阶视频 + Agent + 模型升级** | Wan 2.5；LangGraph 多 Agent；切 Qwen3/DeepSeek/GPT-5 |
+
+---
+
+## 十三、近期目标任务（落地优先序）
+
+### T1. 文案策划可直接交付（最高优先）
+
+- 稳定 `/api/copy/generate` 的成功率与错误提示
+- 完善提示词模板与参数边界
+- 输出固定验收样例（可复测）
+
+### T2. 批量好评可直接交付
+
+- 稳定 `/api/reviews/generate` 质量（去重、风格、多人设）
+- CSV 导出体验与字段约定固化
+- 目标条数 20–100 的性能与可用性验证
+
+### T3. AIGC 图片（海报）可直接交付
+
+- 稳定 `/api/poster/generate` + 轮询链路
+- 强化 Celery 任务可观测性与失败重试
+- 图片 URL 可访问性与下载体验验证
+
+### T4. 测试与交付门槛（当前必须通过）
+
+- 后端聚焦测试：copy/reviews/poster 全绿
+- 前端构建通过（含 `/copy` `/reviews` `/poster` 页面）
+- 形成一键复测脚本与验收 checklist
+
+### T5. 视频与 Agent 后续增强（延后）
+
+- 营销活动多步 Agent 策划（P5）
+- Qdrant 向量检索、Wan 视频模型、音频字幕高级能力
+- 由后续需求触发再进入执行序列

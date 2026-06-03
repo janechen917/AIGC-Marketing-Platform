@@ -20,9 +20,16 @@
 
 ## 当前状态
 
-**STEP 0：脚手架与导航文件** ✅
+**技术状态：STEP 11 第一版已完成**。
 
-后续步骤见 [AI_GUIDE.md 第 10 节](AI_GUIDE.md#10-开发节奏当前位置--step-0)。
+**当前执行优先级（落地优先）**：
+- 文案策划（/copy）
+- 批量好评（/reviews）
+- AIGC 图片（/poster）
+
+视频能力先保持可运行，不作为当前交付阻塞项。
+
+后续步骤见 [AI_GUIDE.md 第 9 节](AI_GUIDE.md#9-已知限制与-todo) 和 [AI_GUIDE.md 第 10 节](AI_GUIDE.md#10-开发节奏当前位置--step-11-第一版完成)。
 
 ---
 
@@ -37,13 +44,23 @@
 
 ## 快速开始
 
-> ⚠️ STEP 1 完成后才有可运行的环境。当前仓库只有文档与目录占位。
-
-预期启动流程（参考）：
-
 ```bash
 cp .env.example .env             # 填入 DASHSCOPE_API_KEY 等
 docker compose up -d             # 启动基础设施
-cd backend && uv sync && uv run uvicorn app.main:app --reload
-cd frontend && pnpm install && pnpm dev
+cd backend && uv sync && uv run uvicorn app.main:app --reload --port 8000
+# 另一个终端：
+cd frontend && cp .env.local.example .env.local && npm install && npm run dev
+```
+
+- 后端：http://localhost:8000  （文档 /docs，健康 /health）
+- 前端：http://localhost:3000  （自动跳 /login）
+
+## 当前推荐测试（先跑这三块）
+
+```bash
+cd backend
+uv run pytest -q tests/test_copywriter.py tests/test_reviews.py tests/test_poster.py
+
+cd ../frontend
+npm run build
 ```

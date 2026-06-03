@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart>=0.0.12",
     "loguru>=0.7",
     "celery[redis]>=5.4",
+    "minio>=7.2",
     "pytest>=8.3",
     "httpx>=0.28",
 ]

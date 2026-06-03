@@ -1,4 +1,9 @@
-"""异步任务 API（STEP 5）。"""
+"""异步任务 API（STEP 5）。
+
+仅保留连通性 ping 与 video-demo 调试任务。
+海报任务已迁移至 POST /api/poster/generate （STEP 9）。
+正式视频链路请使用 /api/video/*（STEP 11）。
+"""
 
 from typing import Any
 
@@ -6,7 +11,6 @@ from celery.result import AsyncResult
 from fastapi import APIRouter, status
 
 from app.workers.celery_app import celery_app, ping_task
-from app.workers.poster_worker import generate_poster_task
 from app.workers.video_worker import generate_video_task
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -16,12 +20,6 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 def enqueue_ping() -> dict[str, str]:
     task = ping_task.delay()
     return {"task_id": task.id, "state": task.state, "task_name": "ping"}
-
-
-@router.post("/poster-demo", status_code=status.HTTP_202_ACCEPTED)
-def enqueue_poster_demo() -> dict[str, str]:
-    task = generate_poster_task.delay({"shot_count": 1})
-    return {"task_id": task.id, "state": task.state, "task_name": "poster.generate"}
 
 
 @router.post("/video-demo", status_code=status.HTTP_202_ACCEPTED)

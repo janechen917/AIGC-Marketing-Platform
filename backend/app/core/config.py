@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_BUCKET: str = "aigc"
+    MINIO_SECURE: bool = False                       # True 走 https
+    MINIO_PUBLIC_BASE_URL: str | None = None         # 浏览器可访问的 base，默认推断 http(s)://{endpoint}
+
+    # ---- 图片生成 ----
+    DASHSCOPE_IMAGE_BASE_URL: str = "https://dashscope.aliyuncs.com/api/v1"
+    POSTER_IMAGE_SIZE: str = "1024*1024"
+    POSTER_IMAGE_POLL_INTERVAL: float = 3.0          # 秒
+    POSTER_IMAGE_POLL_TIMEOUT: int = 180             # 秒
 
     # ---- 安全 ----
     JWT_SECRET: str = "please-change-me"
