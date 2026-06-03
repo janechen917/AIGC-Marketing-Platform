@@ -476,6 +476,10 @@ npm run dev
 
 ### 9.2 当前测试目标（可直接执行）
 
+文案验收样例（固定输入与检查口径）：
+
+- `docs/copy_acceptance_cases.md`
+
 后端聚焦测试：
 
 ```bash
@@ -490,7 +494,7 @@ cd frontend
 npm run build
 ```
 
-### 9.1 完整项目收尾目标（下一阶段执行清单）
+### 9.3 完整项目收尾目标（下一阶段执行清单）
 
 1. **STEP 12（RAG 正式化）**
     - 文档上传/解析/切片/Embedding 入库

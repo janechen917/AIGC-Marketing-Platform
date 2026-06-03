@@ -26,6 +26,8 @@ uv run pytest -q
 
 当前落地优先测试（推荐先执行）：
 
+文案验收样例（固定输入与验收标准）：`../docs/copy_acceptance_cases.md`
+
 ```bash
 cd backend
 uv run pytest -q tests/test_copywriter.py tests/test_reviews.py tests/test_poster.py
