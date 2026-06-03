@@ -24,6 +24,8 @@ export default function ReviewsPage() {
     max_rounds: 10,
     similarity_threshold: 0.85,
     persona_pool: "宝妈, 学生, 上班族, 数码爱好者, 新手用户",
+    require_hashtag: false,
+    require_cta: false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,16 +49,31 @@ export default function ReviewsPage() {
       return;
     }
 
+    if (!form.product_name.trim()) {
+      setError("请填写产品名");
+      return;
+    }
+
+    const targetCount = Math.min(100, Math.max(1, Number(form.target_count) || 1));
+    const batchSize = Math.min(20, Math.max(1, Number(form.batch_size) || 1));
+    const maxRounds = Math.min(50, Math.max(1, Number(form.max_rounds) || 1));
+    const similarityThreshold = Math.min(
+      0.99,
+      Math.max(0.5, Number(form.similarity_threshold) || 0.85),
+    );
+
     const payload: ReviewsGenerateRequest = {
-      product_name: form.product_name,
+      product_name: form.product_name.trim(),
       selling_points: points,
       platform: form.platform,
       style: form.style,
-      target_count: form.target_count,
-      batch_size: form.batch_size,
-      max_rounds: form.max_rounds,
-      similarity_threshold: form.similarity_threshold,
+      target_count: targetCount,
+      batch_size: batchSize,
+      max_rounds: maxRounds,
+      similarity_threshold: similarityThreshold,
       persona_pool: splitLines(form.persona_pool),
+      require_hashtag: form.require_hashtag,
+      require_cta: form.require_cta,
     };
 
     setLoading(true);
@@ -89,7 +106,10 @@ export default function ReviewsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `reviews_${form.product_name || "export"}.csv`;
+    const safeName = (form.product_name.trim() || "export")
+      .replace(/[\\/:*?"<>|\s]+/g, "_")
+      .slice(0, 60);
+    a.download = `reviews_${safeName}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -159,6 +179,27 @@ export default function ReviewsPage() {
             className={inputCls}
           />
         </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.require_hashtag}
+              onChange={(e) =>
+                setForm({ ...form, require_hashtag: e.target.checked })
+              }
+            />
+            需要包含 #话题
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.require_cta}
+              onChange={(e) => setForm({ ...form, require_cta: e.target.checked })}
+            />
+            需要包含 CTA
+          </label>
+        </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Field label="目标条数">
@@ -245,7 +286,7 @@ export default function ReviewsPage() {
               </button>
             </div>
             <p className="mb-3 text-xs text-slate-500">
-              轮数 {result.rounds} · 去重剔除 {result.deduped_dropped}
+              轮数 {result.rounds} · 去重剔除 {result.deduped_dropped} · 合规剔除 {result.compliance_dropped}
             </p>
             <ol className="max-h-[60vh] space-y-2 overflow-auto text-sm">
               {result.reviews.map((r, i) => (

@@ -8,6 +8,7 @@ import random
 import re
 from difflib import SequenceMatcher
 from pathlib import Path
+from unicodedata import normalize
 
 from sqlalchemy.orm import Session
 
@@ -28,10 +29,21 @@ def _load_prompt() -> str:
 
 
 def _normalize_text(text: str) -> str:
-    text = text.strip()
+    text = normalize("NFKC", text).strip()
     text = re.sub(r"^[\-\*\d\.、\)\s]+", "", text)
-    text = re.sub(r"\s+", "", text)
+    text = re.sub(r"\s+", " ", text)
     return text
+
+
+def _fingerprint(text: str) -> str:
+    compact = _normalize_text(text).lower()
+    return re.sub(r"[^\w\u4e00-\u9fff]", "", compact)
+
+
+def _char_bigrams(text: str) -> set[str]:
+    if len(text) < 2:
+        return {text} if text else set()
+    return {text[i : i + 2] for i in range(len(text) - 1)}
 
 
 def _extract_candidates(raw_text: str) -> list[str]:
@@ -45,15 +57,26 @@ def _extract_candidates(raw_text: str) -> list[str]:
 
 
 def _is_similar(a: str, b: str, threshold: float) -> bool:
-    return SequenceMatcher(None, a, b).ratio() >= threshold
+    a_norm = _normalize_text(a)
+    b_norm = _normalize_text(b)
+    seq_ratio = SequenceMatcher(None, a_norm, b_norm).ratio()
+    if seq_ratio >= threshold:
+        return True
+
+    a_set = _char_bigrams(_fingerprint(a_norm))
+    b_set = _char_bigrams(_fingerprint(b_norm))
+    if not a_set or not b_set:
+        return False
+    jaccard = len(a_set & b_set) / len(a_set | b_set)
+    return jaccard >= threshold
 
 
 def _to_csv(reviews: list[str]) -> str:
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["review"])
-    for review in reviews:
-        writer.writerow([review])
+    writer.writerow(["index", "review"])
+    for idx, review in enumerate(reviews, start=1):
+        writer.writerow([idx, review])
     return buffer.getvalue()
 
 
@@ -93,10 +116,12 @@ def generate_reviews(
         req.persona_pool = ["普通用户"]
 
     reviews: list[str] = []
+    review_fingerprints: set[str] = set()
     deduped_dropped = 0
+    compliance_dropped = 0
     rounds = 0
 
-    personas = req.persona_pool[:]
+    personas = req.persona_pool[:] or ["普通用户"]
     random.shuffle(personas)
 
     while len(reviews) < req.target_count and rounds < req.max_rounds:
@@ -131,6 +156,11 @@ def generate_reviews(
 
         accepted_now: list[str] = []
         for item in candidates:
+            item_fp = _fingerprint(item)
+            if item_fp in review_fingerprints:
+                deduped_dropped += 1
+                continue
+
             if any(_is_similar(item, existing, req.similarity_threshold) for existing in reviews):
                 deduped_dropped += 1
                 continue
@@ -141,10 +171,12 @@ def generate_reviews(
                 require_cta=req.require_cta,
             )
             if not compliance["passed"]:
-                deduped_dropped += 1
+                compliance_dropped += 1
                 continue
 
             reviews.append(item)
+            if item_fp:
+                review_fingerprints.add(item_fp)
             accepted_now.append(item)
             if len(reviews) >= req.target_count:
                 break
@@ -173,5 +205,6 @@ def generate_reviews(
         total_generated=len(reviews),
         rounds=rounds,
         deduped_dropped=deduped_dropped,
+        compliance_dropped=compliance_dropped,
         csv_content=_to_csv(reviews),
     )

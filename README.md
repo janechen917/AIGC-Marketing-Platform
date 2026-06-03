@@ -59,6 +59,8 @@ cd frontend && cp .env.local.example .env.local && npm install && npm run dev
 
 文案验收样例（固定输入与验收标准）：`docs/copy_acceptance_cases.md`
 
+批量好评验收样例（固定输入与验收标准）：`docs/reviews_acceptance_cases.md`
+
 ```bash
 cd backend
 uv run pytest -q tests/test_copywriter.py tests/test_reviews.py tests/test_poster.py

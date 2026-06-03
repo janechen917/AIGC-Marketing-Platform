@@ -56,6 +56,7 @@ export type ReviewsGenerateResponse = {
   total_generated: number;
   rounds: number;
   deduped_dropped: number;
+  compliance_dropped: number;
   csv_content: string;
 };
 

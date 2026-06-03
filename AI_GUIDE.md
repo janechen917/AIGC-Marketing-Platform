@@ -480,6 +480,10 @@ npm run dev
 
 - `docs/copy_acceptance_cases.md`
 
+批量好评验收样例（固定输入与检查口径）：
+
+- `docs/reviews_acceptance_cases.md`
+
 后端聚焦测试：
 
 ```bash
